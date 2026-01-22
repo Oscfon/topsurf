@@ -1,0 +1,46 @@
+[project]
+name = "topsurf"
+version = "0.1.0"
+authors = [
+  {name = "Vincent Delecroix"},
+]
+dependencies = [
+]
+description = "Cell decomposition of surfaces in Python"
+requires-python = ">= 3.9"
+readme = "README.md"
+keywords = ["surface", "topology", "cell", "cell decomposition", "cell complex", "map", "combinatorial map", "graph", "embedded graph", "fat graph", "ribbon graph"]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Intended Audience :: Science/Research",
+  "License :: OSI Approved :: GNU General Public License v2 or later (GPLv2+)",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python",
+  "Topic :: Scientific/Engineering :: Mathematics",
+]
+
+[build-system]
+requires = ["hatchling", "hatch-cython", "Cython", "setuptools"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel.hooks.cython]
+dependencies = ["hatch-cython"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["topsurf"]
+
+[tool.hatch.build.targets.wheel.hooks.cython.options]
+# Include directories for .h or .cpp files
+includes = []
+
+# Include headers from common scientific packages
+include_numpy = false
+include_pyarrow = false
+
+compile_py = false
+
+# Cython compiler directives
+directives = { boundscheck = false, nonecheck = false, wraparound = false, overflowcheck = false, cdivision = true, language_level = 3, binding = true }
+
+# Additional keyword arguments passed to setuptools.Extension()
+compile_kwargs = { }

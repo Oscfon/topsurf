@@ -1,0 +1,172 @@
+import pytest
+
+def test_constructor():
+    from topsurf import OrientedMap
+
+    OrientedMap([2, 1, 3, 0], None, edge_like=False)
+    OrientedMap(None, [2, 1, 3, 0], edge_like=False)
+    OrientedMap([0, -1, 3, 4, 5, 2], None, edge_like=False)
+    OrientedMap(None, [0, -1, 3, 4, 5, 2], edge_like=False)
+
+    OrientedMap([0, -1, 3, 4, 5, 2], None, edge_like=False)
+    OrientedMap(None, [0, -1, 3, 4, 5, 2], edge_like=False)
+
+    OrientedMap("(0,1,2)(~0,~1,~2)", None)
+    OrientedMap(None, "(0,1,2)(~0,~1,~2)")
+
+    with pytest.raises(ValueError):
+        OrientedMap([0, 0], None)
+
+    with pytest.raises(ValueError):
+        OrientedMap(None, [0, 0])
+
+
+def test_check_half_edge():
+    from topsurf import OrientedMap
+
+    assert OrientedMap(vp="(0,~0)")._check_half_edge(0) == 0
+
+    with pytest.raises(TypeError):
+        OrientedMap(vp="(0,~0)")._check_half_edge("1")
+
+    with pytest.raises(ValueError):
+        OrientedMap(vp="(0,~0)")._check_half_edge(2)
+
+    assert OrientedMap(vp="(0)")._check_half_edge(0) == 0
+
+    with pytest.raises(ValueError):
+        OrientedMap(vp="(0")._check_half_edge(1)
+
+    with pytest.raises(ValueError):
+        OrientedMap(vp="(0,2)")._check_half_edge(2)
+
+
+def test_check_edge():
+    from topsurf import OrientedMap
+
+    assert OrientedMap(fp="(0,1,~1)")._check_edge(0) == 0
+
+    with pytest.raises(ValueError):
+        OrientedMap(fp="(0,1,~1)")._check_edge(-1)
+    
+    with pytest.raises(ValueError):
+        OrientedMap("(0,1,~1)")._check_edge(2)
+
+    with pytest.raises(ValueError):
+        OrientedMap(fp="(0,2)")._check_edge(1)
+
+
+def test_cmp():
+    from topsurf import OrientedMap
+
+    assert OrientedMap("(0,1,2)(~0,~1,~2)", None) == OrientedMap("(0,1,2)(~0,~1,~2)", None)
+    assert not (OrientedMap("(0,1,2)(~0,~1,~2)", None) == OrientedMap("(0,~0,1)(~1,2,~2)", None))
+    assert OrientedMap("(0,1,2,~0,~1,~2)", None) == OrientedMap("(0,1,2,~0,~1,~2)", None)
+    assert not (OrientedMap("(0,1,2,~0,~1,~2)", None) == OrientedMap("(0,1,~2,~0,~1,2)", None))
+
+    assert not (OrientedMap("(0,1,2)(~0,~1,~2)", None) != OrientedMap("(0,1,2)(~0,~1,~2)", None))
+    assert OrientedMap("(0,1,2)(~0,~1,~2)", None) != OrientedMap("(0,~0,1)(~1,2,~2)", None)
+    assert not (OrientedMap("(0,1,2,~0,~1,~2)", None) != OrientedMap("(0,1,2,~0,~1,~2)", None))
+    assert OrientedMap("(0,1,2,~0,~1,~2)", None) != OrientedMap("(0,1,~2,~0,~1,2)", None)
+
+
+def test_pickling():
+    from topsurf import OrientedMap
+    from pickle import loads, dumps
+
+    t = OrientedMap(fp="(0,1,2)")
+    assert loads(dumps(t)) == t
+    t = OrientedMap("(0,1,2)(~0,3,4)")
+    assert loads(dumps(t)) == t
+
+    t0 = OrientedMap("(0,1,2)", mutable=False)
+    t1 = OrientedMap("(0,1,2)", mutable=True)
+    s0 = loads(dumps(t0))  # indirect doctest
+    assert s0 == t0 and not s0.is_mutable()
+    s0._check()
+    s1 = loads(dumps(t1))  # indirect doctest
+    assert s1 == t1 and s1.is_mutable()
+    s1._check()
+
+
+def test_hash():
+    from itertools import permutations, combinations
+    from topsurf import OrientedMap
+
+
+    m0 = OrientedMap(vp="(0,~0)")
+    m1 = OrientedMap(vp="(0,~0)", mutable=True)
+    hash(m0)
+    with pytest.raises(ValueError):
+        hash(m1)
+
+
+    maps = []
+    maps.append(OrientedMap(fp="(0,1,2)"))
+    for p in permutations(["1", "~1", "2", "~2"]):
+        maps.append(OrientedMap(fp="(0,{},{})(~0,{},{})".format(*p)))
+
+    for i, j in combinations([0, 1, 2, 3], 2):
+        for k, l in permutations(set(range(4)).difference([i, j])):
+            vars = {'i': i, 'j': j, 'k': k, 'l': l}
+            m = OrientedMap(fp="({i},{j},{k})(~{i},~{j},{l})".format(**vars))
+            maps.append(m)
+            m = OrientedMap(fp="({i},~{j},{k})(~{i},{j},{l})".format(**vars))
+            maps.append(m)
+            m = OrientedMap(fp="({i},{k},{j})(~{i},~{j},{l})".format(**vars))
+            maps.append(m)
+            m = OrientedMap(fp="({i},{k},~{j})(~{i},{j},{l})".format(**vars))
+            maps.append(m)
+            m = OrientedMap(fp="({i},{j},{k})(~{i},{l},~{j})".format(**vars))
+            maps.append(m)
+            m = OrientedMap(fp="({i},~{j},{k})(~{i},{l},{j})".format(**vars))
+            maps.append(m)
+            m = OrientedMap(fp="({i},{k},{j})(~{i},{l},~{j})".format(**vars))
+            maps.append(m)
+            m = OrientedMap(fp="({i},{k},~{j})(~{i},{l},{j})".format(**vars))
+            maps.append(m)
+
+    for i in range(len(maps)):
+        for j in range(len(maps)):
+            assert (maps[i] == maps[j]) == (i == j), (i, j)
+            assert (maps[i] != maps[j]) == (i != j), (i, j)
+
+    hashes = {}
+    for t in maps:
+        h = hash(t)
+        assert h not in hashes
+        hashes[h] = t
+    assert len(hashes) == len(maps)
+
+    hashes1 = {}
+    hashes2 = {}
+    for m in maps:
+        h1 = hash(m) % (2 ** 16)
+        h2 = (hash(m) >> 16) % (2 ** 16)
+        assert h1 not in hashes1
+        hashes1[h1] = m
+        assert h2 not in hashes2
+        hashes2[h2] = m
+    assert len(hashes1) == len(hashes2) == len(maps)
+
+def test_copy():
+    from topsurf import OrientedMap
+
+    for mutable in [True, False]:
+        m = OrientedMap(fp="(0,1,2)(~0,~1,~2)", mutable=mutable)
+        m1 = m.copy()
+        m2 = m.copy(mutable=True)
+        m3 = m.copy(mutable=False)
+        assert m == m1
+        assert m == m2
+        assert m == m3
+        assert m1.is_mutable() == m.is_mutable()
+        assert m2.is_mutable()
+        assert not m3.is_mutable()
+
+
+def test_swap():
+    from topsurf import OrientedMap
+
+
+
