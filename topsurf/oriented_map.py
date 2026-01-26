@@ -132,7 +132,7 @@ class OrientedMap:
         sage: OrientedMap(vp=[[0,1]])
         OrientedMap("(0,~0)", "(0)(~0)")
 
-    In cycle notation, if an half-edge is not mentionned then it is fold::
+    In cycle notation, if an half-edge is not mentionned then the corresponding edge is folded::
 
         sage: OrientedMap(vp="(0,1)(~0)")
         OrientedMap("(0,1)(~0)", "(0,~0,1)")
@@ -141,7 +141,7 @@ class OrientedMap:
         sage: OrientedMap(vp=[[0,2],[1]])
         OrientedMap("(0,1)(~0)", "(0,~0,1)")
 
-    In list notation, an half-edge send to -1 is fold::
+    In list notation,  an half-edge sent to -1 corresponds to a folded edge::
 
         sage: OrientedMap(vp=[2,1,0,-1])
         OrientedMap("(0,1)(~0)", "(0,~0,1)")
@@ -246,16 +246,6 @@ class OrientedMap:
         for h in range(2 * ne):
             if self._vp[h] != -1 and self._fp[self._ep(self._vp[h])] != h:
                 raise error(f"fev relation not satisfied at half-edge h={self._half_edge_string(h)}")
-
-    def _check_alloc(self, n):
-        if len(self._vp) < n or len(self._ep) < n or len(self._fp) < n:
-            raise TypeError("reallocation needed")
-
-    def _realloc(self, n_max):
-        if n_max < self._n:
-            return
-        self._vp.extend([-1] * (n_max - self._n))
-        self._fp.extend([-1] * (n_max - self._n))
 
     def __getstate__(self):
         a = [self._mutable]
@@ -992,7 +982,7 @@ class OrientedMap:
                     vp[h] = h_image
 
         assert perm_check(vp)
-        return OrientedMap(vp=vp, mutable=mutable, edge_like=False, partial=True, check=check)
+        return OrientedMap(vp=vp, mutable=mutable, check=check)
 
     def connected_components_submaps(self, relabel=False, mutable=False):
         r"""
