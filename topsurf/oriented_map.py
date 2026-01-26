@@ -2307,7 +2307,37 @@ class OrientedMap:
         if mutable==None:
             mutable=self._mutable
         return OrientedMap(fp=self._vp,mutable=mutable)
-        
+
+
+    def smoothing(self, h1, h2=None, check=2):
+        if check:
+            self._assert_mutable()
+            self._check_half_edge(h1)
+            if h1 == h2:
+                raise ValueError("cannot smooth vertex with the same corner")
+            if h2 != None:
+                self._check_half_edge(h2)
+            #TODO check if h2 and h1 are on the same vertex ?
+
+        if h2 == None:
+            n = 1
+            cur = self._vp[h1]
+            while cur != h1:
+                cur = self._vp[cur]
+                n+=1
+            if n%2 == 1:
+                raise ValueError("can only smooth an even degree vertex with only h1")
+            n1 = n//2
+            h2 = h1
+            for _ in range(n1):
+                h2 = self._vp[h2]
+            
+        h3 = self._vp[h2]
+        h4 = self._vp[h1]
+        self._vp[h1] = h3
+        self._vp[h2] = h4
+        self._fp[self._ep(h3)] = h1        
+        self._fp[self._ep(h4)] = h2
 
 
 # - relabel: keep combinatorics but change labellings
