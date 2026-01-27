@@ -510,6 +510,11 @@ class OrientedMap:
 
         return G, embedding
 
+    def plot(self):
+        G, em = self.graph()
+        pos = G.layout_planar(on_embedding=em, external_face=0)
+        return G.plot(pos=pos, vertex_labels=False, edge_labels=True)
+
     def to_string(self):
         r"""
         Serialize this oriented map as a string.
@@ -811,7 +816,7 @@ class OrientedMap:
         if check:
             h = self._check_half_edge(h)
         return self._fp[h]
-
+    
     def previous_in_face(self, h, check=True):
         r"""
         Return the half-edge before ``h`` in the corresponding face.
@@ -1012,6 +1017,44 @@ class OrientedMap:
         """
         return perm_num_cycles(self._fp)
 
+    def vertex_degree(self, h):
+        r"""
+        Return the degree of the vertex incident to h.
+
+        EXAMPLES::
+
+            sage: m = OrientedMap(vp="(0,1,2)(3,4,5)(~0,~3,6)")
+            sage: m.vertex_degree(2)
+            3
+        """
+        self._check_half_edge(h)
+        n = 1
+        cur = self._vp[h]
+        while cur != h:
+            cur = self._vp[cur]
+            n += 1
+        return n
+
+
+    def face_degree(self, h):
+        r"""
+        Return the degree of the face incident to h.
+        
+        EXAMPLES::
+
+            sage: m = OrientedMap(vp="(0,1,2)(3,4,5)(~0,~3,6)")
+            sage: m.face_degree(2)
+            9
+        """
+        self._check_half_edge(h)
+        n = 1
+        cur = self._fp[h]
+        while cur != h:
+            cur = self._fp[cur]
+            n += 1
+        return n
+
+    
     def is_connected(self):
         r"""
         Return whether the constellation is connected.
