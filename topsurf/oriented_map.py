@@ -2484,6 +2484,44 @@ class OrientedMap:
         remove_trailing_minus_ones(self._fp)
         remove_trailing_minus_ones(self._vp)
 
+
+    def move_half_edge(self, h, c, check=True):
+        r"""
+        Move the half_edge h to the corner after c.
+
+        EXAMPLES::
+
+            sage: G = OrientedMap(vp = [[0, 4, 2], [1], [3], [5]], mutable=True)
+            sage: G.move_half_edge(4, 1)
+            sage: G
+            OrientedMap("(0,1)(~0,2)(~1)(~2)", "(0,2,~2,~0,1,~1)")
+            sage: H = OrientedMap(vp = [[0, 4, 2], [1, 6], [3], [5]], mutable=True)
+            sage: H.move_half_edge(6, 0)
+            sage: H
+            OrientedMap("(0,3,2,1)(~0)(~1)(~2)", "(0,~0,1,~1,2,~2,3)")
+            sage: I = OrientedMap(vp = [[0, 4, 2], [1, 6], [3], [5]], mutable=True)
+            sage: I.move_half_edge(4, 6)
+            sage: I
+            OrientedMap("(0,1)(~0,3,2)(~1)(~2)", "(0,2,~2,3,~0,1,~1)")
+        """
+
+        if check:
+            self._check()
+            self._assert_mutable()
+
+        oh = self._ep(h)
+        pre_h = self._fp[oh]
+
+        self._vp[pre_h] = self._vp[h]
+        self._vp[h] = self._vp[c]
+        self._vp[c] = h
+
+        self._fp[oh] = c
+        self._fp[self._ep(self._vp[h])] = h
+        self._fp[self._ep(self._vp[pre_h])] = pre_h
+
+        
+
 # - relabel: keep combinatorics but change labellings
 # - slide or half_edge_slide (possibly flip as a shortcut)
 # - contract_edge, delete_edge
