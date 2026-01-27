@@ -109,6 +109,7 @@ def remove_trailing_minus_ones(p):
 #    hash
 #    relabel
 #    TODO: keep best relabelling generic stuff with reasonable cost
+# TODO: ambiguity oriented could refer to the orientation of edges
 class OrientedMap:
     r"""
     Map on oriented surface.
@@ -814,12 +815,12 @@ class OrientedMap:
             sage: m.next_in_face(1)
             Traceback (most recent call last):
             ...
-            ValueError: invalid half-edge (=1); the underlying edges is folded
+            ValueError: invalid half-edge (=1); the underlying edge is folded
         """
         if check:
             h = self._check_half_edge(h)
         return self._fp[h]
-    
+
     def previous_in_face(self, h, check=True):
         r"""
         Return the half-edge before ``h`` in the corresponding face.
@@ -1896,7 +1897,7 @@ class OrientedMap:
         perm_conjugate_transposition_inplace(self._fp, h, H, h_fp_inv, H_fp_inv)
 
     # TODO: if given as cycles, can we make it O(input size)?
-    def relabel(self, p=None, check=True):
+    def relabel(self, p=None, check=2):
         r"""
         Relabel this triangulation inplace.
 
@@ -1918,6 +1919,7 @@ class OrientedMap:
             sage: m.relabel("(0,~1)")
             Traceback (most recent call last):
             ...
+            ValueError: immutable map; use a mutable copy instead
 
         An example where ``p`` is not provided::
 
@@ -2616,11 +2618,9 @@ class OrientedMap:
             False
 
         """
-        if check:
-            self._check()
-        if mutable==None:
-            mutable=self._mutable
-        return OrientedMap(fp=self._vp,mutable=mutable)
+        if mutable is None:
+            mutable = self._mutable
+        return OrientedMap(fp=self._vp, mutable=mutable)
 
 
     def smoothing(self, h, check=True):
@@ -2752,6 +2752,8 @@ class OrientedMap:
         Move the half_edge h to the corner after c.
 
         EXAMPLES::
+
+            sage: from topsurf import OrientedMap
 
             sage: G = OrientedMap(vp = [[0, 4, 2], [1], [3], [5]], mutable=True)
             sage: G.move_half_edge(4, 1)
