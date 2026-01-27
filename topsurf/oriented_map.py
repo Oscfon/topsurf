@@ -86,51 +86,97 @@ def check_relabelling(arg, ne):
 
     return p
 
+
+
+def remove_trailing_minus_ones(p):
+    while p and p[-2] == -1:
+        if p[-1] != -1:
+            raise ValueError("invalid permutation")
+        p.pop()
+        p.pop()
+
 # half-edge versus dart
 
 # TODO: make sure to remove trailing -1 to make equality consistent
 # TODO: should we maintain num_active_darts, num_active_edges
 
-# TODO: should we make it work with some edges inactive?
-# TODO: support for reallocation (needed in surface-dynamics)
 # TODO: add support for half-edges and edges data
 #  have a python data protocol for map
 #    realloc
 #    hash
 #    relabel
 #    TODO: keep best relabelling generic stuff with reasonable cost
-
-# TODO: make it so that there is no trailing -1
 class OrientedMap:
     r"""
     Map on oriented surface.
 
-    EXAMPLES::
-    
+    An ``OrientedMap`` is encoded by three permutations called the *vertex permutation*,
+    the *edge permutation* and the *face permutation*. The edge permutation is always
+    implicit and the vertex and face permutations are always abreviated as ``vp`` and
+    ``fp``. The cycles in the cycle decomposition of ``vp`` and ``fp`` encode
+    respectively the vertices and the faces of the map. The domain of the permutations
+    is the set of *half-edges* of the map. Each *half-edge* could either be
+    paired to make an edge, or be alone and form a *folded* edge.
+
+    EXAMPLES:
+
         sage: from topsurf import OrientedMap
-        
-    Initialized with a string::
-        
-        sage: OrientedMap(vp="(0,~0)")
-        OrientedMap("(0,~0)", "(0)(~0)")
 
-    Under the hood, the vertex permutation of the above example turns out to be
-    "(0,1)". To initialize permutations in this form use the
-    ``edge_like=False`` option::
+    The most user friendly way to initialize an ``OrientedMap`` is to use
+    strings that describe the cycle decomposition of the vertex and face
+    permutations. Here, edges correspond to pair of elements of the form ``i``
+    and ``~i``. Here is a map made of three edges::
 
-        sage: OrientedMap(vp="(0,1)", edge_like=False)
-        OrientedMap("(0,~0)", "(0)(~0)")
+        sage: OrientedMap(vp="(0,~2,~1,~3,1,~0,3)(2)", fp="(0,1,~2,2)(~0,3,~1,~3)")
+        OrientedMap("(0,~2,~1,~3,1,~0,3)(2)", "(0,1,~2,2)(~0,3,~1,~3)")
 
-    Initialized with a list of integer::
+    Since vertex and face permutations are redundant, you can provide only one
+    of them::
 
-        sage: OrientedMap(vp=[1,0])
-        OrientedMap("(0,~0)", "(0)(~0)")
+        sage: OrientedMap(vp="(0,~2,~1,~3,1,~0,3)(2)")
+        OrientedMap("(0,~2,~1,~3,1,~0,3)(2)", "(0,1,~2,2)(~0,3,~1,~3)")
+        sage: OrientedMap(fp="(0,1,~2,2)(~0,3,~1,~3)")
+        OrientedMap("(0,~2,~1,~3,1,~0,3)(2)", "(0,1,~2,2)(~0,3,~1,~3)")
 
-    Initialized with a list of cycles (not mentioned elements are considered to be fixed
-    point)::
+    Under the hood, the vertex permutation of the above example
+    turns out to be `0 \mapsto 5`, `1 \mapsto 6`, `2 \mapsto 1`,
+    `3 \mapsto 7`, `4 \mapsto 4`, `5 \mapsto 3`, `6 \mapsto 0`
+    `7 \mapsto 2`. Or in cycle notation  ``(0,5,3,7,2,1,6)(4)``.
+    More precisely, half-edges in the map use non-negative integers and an
+    even half-edge is always paired to the half-edge with the next integer (so
+    that ``i`` and ``~i`` in the string notation correspond to ``2i`` and
+    ``2i+1`` in the actual permutation)::
 
-        sage: OrientedMap(vp=[[0,1]])
-        OrientedMap("(0,~0)", "(0)(~0)")
+        sage: m = OrientedMap(vp="(0,~2,~1,~3,1,~0,3)(2)", fp="(0,1,~2,2)(~0,3,~1,~3)")
+        sage: m.vertex_permutation()
+        array('i', [5, 6, 1, 7, 4, 3, 0, 2])
+        sage: from topsurf.permutation import perm_cycle_string
+        sage: perm_cycle_string(m.vertex_permutation())
+        '(0,5,3,7,2,1,6)(4)'
+
+    One can alternatively initialize an oriented map with a permutation either as a
+    list of images::
+
+        sage: OrientedMap(vp=[5, 6, 1, 7, 4, 3, 0, 2])
+        OrientedMap("(0,~2,~1,~3,1,~0,3)(2)", "(0,1,~2,2)(~0,3,~1,~3)")
+
+    Or as a list of disjoint cycles (including fixed points)::
+
+        sage: OrientedMap(vp=[[0,5,3,7,2,1,6], [4]])
+        OrientedMap("(0,~2,~1,~3,1,~0,3)(2)", "(0,1,~2,2)(~0,3,~1,~3)")
+
+    It is not necessary for edges to be consecutive integers. One can for example
+    initialize a map on a torus with edges `2` and `5`::
+
+        sage: OrientedMap(vp="(2,5,~2,~5)")
+        OrientedMap("(2,5,~2,~5)", "(2,5,~2,~5)")
+
+    The corresponding vertex and face permutation of the above examples are lists of
+    length 16 where only the images of `4`, `5`, `10` and `11` are different from
+    `-1`::
+
+        sage: OrientedMap(vp="(2,5,~2,~5)").vertex_permutation()
+        array('i', [-1, -1, -1, -1, 10, 11, -1, -1, -1, -1, 5, 4])
 
     In cycle notation, if an half-edge is not mentionned then the corresponding edge is folded::
 
@@ -141,38 +187,44 @@ class OrientedMap:
         sage: OrientedMap(vp=[[0,2],[1]])
         OrientedMap("(0,1)(~0)", "(0,~0,1)")
 
-    In list notation,  an half-edge sent to -1 corresponds to a folded edge::
+    Folded edge could also be initialized from list of images as follows::
 
         sage: OrientedMap(vp=[2,1,0,-1])
         OrientedMap("(0,1)(~0)", "(0,~0,1)")
     """
     __slots__ = ['_vp', '_fp', '_mutable']
 
-    def __init__(self, vp=None, fp=None, edge_like=True, mutable=False, check=True):
+    def __init__(self, vp=None, fp=None, mutable=False, check=True):
+        r"""
+        INPUT:
+
+        - ``vp`` -- ``None`` or data to initialize the vertex permutation
+
+        - ``fp`` -- ``None`` or data to initialize the face permutation
+
+        - ``mutable`` (boolean, default ``False``) -- whether the resulting map should be mutable
+          or immutable
+
+        - ``check`` (boolean, default ``True``) -- whether to perform consistency checks of
+          the data
+        """
         if vp is None and fp is None:
             raise ValueError("either the vertex permutation vp or the face permutation fp must be provided")
 
         if vp is not None:
-            vp = perm_init(vp, partial=True, edge_like=edge_like)
+            vp = perm_init(vp, partial=True, edge_like=isinstance(vp, str))
             if len(vp) % 2 == 1:
                 vp.append(-1)
+            ne = len(vp) // 2
 
         if fp is not None:
-            fp = perm_init(fp, partial=True, edge_like=edge_like)
+            fp = perm_init(fp, partial=True, edge_like=isinstance(fp, str))
             if len(fp) % 2 == 1:
                 fp.append(-1)
-
-        if vp is not None:
-            if len(vp) % 2 != 0:
-                raise ValueError("the vertex permutation vp must have even length")
-            ne = len(vp) // 2
-        else:
-            if len(fp) % 2 != 0:
-                raise ValueError("the face permutation fp must have even length")
             ne = len(fp) // 2
 
         if vp is None:
-            vp = self._vp = array('i', [-1] * (2 * ne))
+            vp = array('i', [-1] * (2 * ne))
             for i in range(2 * ne):
                 if fp[i] == -1:
                     continue
@@ -180,7 +232,7 @@ class OrientedMap:
                 vp[ii] = i
 
         if fp is None:
-            fp = self._fp = array('i', [-1] * (2 * ne))
+            fp = array('i', [-1] * (2 * ne))
             for i in range(2 * ne):
                 if vp[i] == -1:
                     continue
@@ -188,13 +240,11 @@ class OrientedMap:
                 if ii != -1:
                     fp[ii] = i
 
-        # remove trailing -1
-        while vp and vp[-2] == -1:
-            vp.pop()
-            vp.pop()
-        while fp and fp[-2] == -1:
-            fp.pop()
-            fp.pop()
+        if len(vp) != len(fp):
+            raise ValueError(f"inconsistent input: vp has length {len(vp)} while fp has length {len(fp)}")
+
+        remove_trailing_minus_ones(vp)
+        remove_trailing_minus_ones(fp)
 
         self._vp = vp
         self._fp = fp
@@ -422,13 +472,6 @@ class OrientedMap:
             return c
 
         return c
-
-        # c = (self._half_edges_data > other._half_edges_data) - (self._half_edges_data < other._half_edges_data)
-        # if c:
-        #     return c
-
-        # c = (self._edges_data > other._edges_data) - (self._edges_data < other._edges_data)
-        # return c
 
     def _richcmp_(self, other, op):
         r"""
