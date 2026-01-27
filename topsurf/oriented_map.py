@@ -2401,8 +2401,10 @@ class OrientedMap:
         
         self._vp[h] = self._vp[oh3] if self._vp[oh3] != oh3 else h
         self._vp[h1] = self._vp[oh2] if self._vp[oh2] != oh2 else h1
-        self._vp[self._fp[h3]] = h
-        self._vp[self._fp[h2]] = h1
+        if h3 != oh:
+            self._vp[self._fp[h3]] = h
+        if h2 != oh1:
+            self._vp[self._fp[h2]] = h1
         self._vp[oh3] = -1
         self._vp[oh2] = -1
         self._vp[h2] = -1
@@ -2417,6 +2419,8 @@ class OrientedMap:
         self._fp[oh2] = -1
         self._fp[oh3] = -1
 
+        remove_trailing_minus_ones(self._fp)
+        remove_trailing_minus_ones(self._vp)
 
 # - relabel: keep combinatorics but change labellings
 # - slide or half_edge_slide (possibly flip as a shortcut)
