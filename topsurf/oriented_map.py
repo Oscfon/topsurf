@@ -412,7 +412,7 @@ class OrientedMap:
             raise ValueError(f"half-edge number out of range (={h})")
         if self._ep(h) == 0:
             raise ValueError(f"the edge corresponding to {h} is folded")
-    
+
     def _check_edge(self, e):
         if not isinstance(e, numbers.Integral):
             raise TypeError(f"invalid edge {e}")
@@ -422,6 +422,93 @@ class OrientedMap:
         if self._vp[2 * e] == -1:
             raise ValueError(f"inactive edge e={e}")
         return e
+
+    # TODO: convention for external face?
+    def graph(self, oriented=False, subdivide=True):
+        r"""
+        Return the sage graph and the embedding associated to this map.
+
+        INPUT:
+
+        - ``subdivide`` (boolean, default ``False``) -- if ``True`` then insert
+          one vertex on each edge and two vertices on each loop so that the
+          resulting graph is simple.
+
+        EXAMPLES::
+
+            sage: from topsurf import OrientedMap
+            sage: m = OrientedMap(vp="(0,~2)(~0,3,1)(~1,~5,2)(~3,4)(~4,5)")
+            sage: G, em = m.graph()
+            sage: pos = G.layout_planar(on_embedding=em, external_face=)
+            sage: G.plot(pos=, vertex_labels=False, edge_labels=True)
+        """
+        # NOTE: sage graphs use *clockwise* order for the neighbors
+        if self.has_folded_edge():
+            raise NotImplementedError
+
+        vertices = self.vertices()
+        half_edge_to_vertex = [-1] * (2 * len(self._vp))
+        for i, v in enumerate(vertices):
+            for j in v:
+                half_edge_to_vertex[j] = i
+
+        embedding = {}
+
+        if oriented:
+            from sage.graphs.digraph import DiGraph
+            G = DiGraph(len(vertices), multiedges=not subdivide, loops=not subdivide)
+        else:
+            from sage.graphs.graph import Graph
+            G = Graph(len(vertices), multiedges=not subdivide, loops=not subdivide)
+
+        edges = collections.defaultdict(list)
+        for e in range(len(self._vp) // 2):
+            u = half_edge_to_vertex[2 * e]
+            v = half_edge_to_vertex[2 * e + 1]
+            if not oriented and v > u:
+                u, v = v, u
+            edges[(u, v)].append(e)
+
+        half_edge_end = [half_edge_to_vertex[h ^ 1] for h in range(len(self._vp))]
+
+        if subdivide:
+            loops = []
+            multiple_edges = []
+            for (u, v), edge_list in edges.items():
+                if u == v:
+                    # subdivide in three
+                    for e in edge_list:
+                        w0 = G.add_vertex()
+                        w1 = G.add_vertex()
+                        G.add_edge(u, w0, e)
+                        G.add_edge(w0, w1, e)
+                        G.add_edge(w1, u, e)
+                        embedding[w0] = [u, w1]
+                        embedding[w1] = [v, w0]
+                        half_edge_end[2 * e] = w0
+                        half_edge_end[2 * e + 1] = w1
+                elif len(edge_list) > 1:
+                    # subdivide in two
+                    for e in edge_list:
+                        w = G.add_vertex()
+                        G.add_edge(u, w, e)
+                        G.add_edge(w, v, e)
+                        embedding[w] = [u, v]
+                        half_edge_end[2 * e] = w
+                        half_edge_end[2 * e + 1] = w
+                else:
+                    e, = edge_list
+                    G.add_edge(u, v, e)
+        else:
+            for e in range(0, len(self._vp) // 2):
+                G.add_edge(half_edge_to_vertex[2 * e], half_edge_to_vertex[2 * e + 1], e)
+
+        for i, v in enumerate(vertices):
+            embedding[i] = []
+            for j in reversed(v):
+                embedding[i].append(half_edge_end[j])
+
+        return G, embedding
 
     def to_string(self):
         r"""
