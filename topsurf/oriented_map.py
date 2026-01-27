@@ -2376,6 +2376,14 @@ class OrientedMap:
             sage: H.smoothing(0)
             sage: H
             OrientedMap("(0,~5)(~0,4)(1,5)(~1,~4)", "(0,4,~1,5)(~0,~5,1,~4)")
+            sage: I = OrientedMap(vp=[[0, 2, 3, 4], [1], [5]], mutable=True)
+            sage: I.smoothing(0)
+            sage: I
+            OrientedMap("(0)(~0)", "(0,~0)")
+            sage: J = OrientedMap(vp=[[0, 2, 3, 4], [1], [5]], mutable=True)
+            sage: J.smoothing(2)
+            sage: J
+            OrientedMap("(1)(~1)", "(1,~1)")
 
         """
 
