@@ -1536,14 +1536,12 @@ class OrientedMap:
             if h1 < 0:
                 if h0 == h1:
                     # independent loop
-                    print("case 1")
                     vp[2 * e] = 2 * e + 1
                     vp[2 * e + 1] = 2 * e
                     fp[2 * e] = 2 * e
                     fp[2 * e + 1] = 2 * e + 1
                 else:
                     # independent edge
-                    print("case 2")
                     vp[2 * e] = 2 * e
                     vp[2 * e + 1] = 2 * e + 1
                     fp[2 * e] = 2 * e + 1
@@ -1553,7 +1551,6 @@ class OrientedMap:
                 h1_fp_prev = self.previous_in_face(h1)
 
                 vp[2 * e] = 2 * e
-
                 vp[2 * e + 1] = vp[h1]
                 vp[h1] = 2 * e + 1
 
@@ -1564,8 +1561,8 @@ class OrientedMap:
         elif h1 < 0:
             # edge attached only at h0
             h0_fp_prev = self.previous_in_face(h0)
+            
             vp[2 * e + 1] = 2 * e + 1
-
             vp[2 * e] = vp[h0]
             vp[h0] = 2 * e
 
@@ -1592,7 +1589,6 @@ class OrientedMap:
 
             vp[2 * e] = vp[h0]
             vp[h0] = 2 * e
-
             vp[2 * e + 1] = vp[h1]
             vp[h1] = 2 * e + 1
 
@@ -1601,14 +1597,114 @@ class OrientedMap:
             fp[h0_fp_prev] = 2 * e
             fp[2 * e] = h1
 
-    def insert_edge(self, h0, h1=None, e=None, check=2):
+    def insert_edge(self, h0=-1, h1=-1, e=None, check=2):
         r"""
         Add an edge.
 
         This operation is the inverse of :meth:`contract_edge` and dual to
         :meth:`add_edge`. See also :meth:`delete_edge`.
+
+        EXAMPLES::
+        
+            sage: from topsurf import OrientedMap
+            sage: m = OrientedMap(fp="(0,1,~0,~1)", mutable=True)
+            sage: m.insert_edge(0, 1)
+            sage: m
+            OrientedMap("(0,1,2,~0,~1,~2)", "(0,2,~1)(~0,~2,1)")
+            
+            sage: G = OrientedMap(vp = [[0, 2], [1, 4], [3, 5]], mutable=True)
+            sage: G_dual = G.dual()
+            sage: G.add_edge(0, 4)
+            sage: G_dual.insert_edge(0, 4)
+            sage: G_dual == G.dual()
+            True
+
         """
-        pass
+
+        if check >= 1:
+            self._assert_mutable()
+            h0 = self._check_half_edge_or_negative(h0)
+            if h1 is not None:
+                h1 = self._check_half_edge_or_negative(h1)
+
+        if e is None:
+            e = len(self._vp) // 2
+        else:
+            if not isinstance(e, numbers.Integral):
+                raise ValueError("e must be an integer")
+            e = int(e)
+            if 2 * e > len(self._vp):
+                raise NotImplementedError
+            if self._vp[2 * e] != -1:
+                raise ValueError(f"invalid edge e (={e}) already in use")
+
+        if 2 * e == len(self._vp):
+            # make extra space for the new edge
+            self._vp.append(-1)
+            self._vp.append(-1)
+            self._fp.append(-1)
+            self._fp.append(-1)
+
+        vp = self._vp
+        fp = self._fp
+
+        if h0 < 0:
+            if h1 < 0:
+                if h0 != h1:
+                    # independent loop
+                    vp[2 * e] = 2 * e + 1
+                    vp[2 * e + 1] = 2 * e
+                    fp[2 * e] = 2 * e
+                    fp[2 * e + 1] = 2 * e + 1
+                else:
+                    # independent edge
+                    vp[2 * e] = 2 * e
+                    vp[2 * e + 1] = 2 * e + 1
+                    fp[2 * e] = 2 * e + 1
+                    fp[2 * e + 1] = 2 * e
+            else:
+                # loop attached after h1
+                fp[2 * e] = 2 * e
+                fp[2 * e + 1] = fp[h1]
+                fp[h1] = 2 * e + 1
+
+                vp[2 * e + 1] = self._ep(h1)
+                vp[2 * e] = 2 * e + 1
+                vp[fp[2 * e + 1]] = 2 * e
+
+        elif h1 < 0:
+            # loop attached after h0
+            fp[2 * e + 1] = 2 * e + 1
+            fp[2 * e] = fp[h0]
+            fp[h0] = 2 * e
+
+            vp[2 * e] = self._ep(h0)
+            vp[2 * e + 1] = 2 * e
+            vp[fp[2 * e]] = 2 * e + 1
+            
+        elif h0 == h1:
+            # insert an edge with a vertex after h0
+            fp[2 * e] = 2 * e + 1
+            fp[2 * e + 1] = fp[h0]
+            fp[h0] = 2 * e
+
+            vp[fp[2 * e + 1]] = 2 * e
+            vp[2 * e] = self._ep(h0)
+            vp[2 * e + 1] = 2 * e + 1
+
+        else:
+            # insert an edge between h0 and h1
+            fp[2 * e + 1] = fp[h1]
+            fp[2 * e] = fp[h0]
+            fp[h0] = 2 * e
+            fp[h1] = 2 * e + 1
+
+            vp[2 * e] = self._ep(h0)
+            vp[2 * e + 1] = self._ep(h1)
+            vp[fp[2 * e + 1]] = 2 * e
+            vp[fp[2 * e]] = 2 * e + 1
+            
+        
 
     def flip_orientation(self, e, check=True):
         r"""
@@ -2537,6 +2633,44 @@ class OrientedMap:
             self._vp[c1] = nv0
             self._fp[nf1] = c0
             self._fp[nf0] = c1
+
+
+    def move_half_edge(self, h, c, check=True):
+        r"""
+        Move the half_edge h to the corner after c.
+
+        EXAMPLES::
+
+            sage: G = OrientedMap(vp = [[0, 4, 2], [1], [3], [5]], mutable=True)
+            sage: G.move_half_edge(4, 1)
+            sage: G
+            OrientedMap("(0,1)(~0,2)(~1)(~2)", "(0,2,~2,~0,1,~1)")
+            sage: H = OrientedMap(vp = [[0, 4, 2], [1, 6], [3], [5]], mutable=True)
+            sage: H.move_half_edge(6, 0)
+            sage: H
+            OrientedMap("(0,3,2,1)(~0)(~1)(~2)", "(0,~0,1,~1,2,~2,3)")
+            sage: I = OrientedMap(vp = [[0, 4, 2], [1, 6], [3], [5]], mutable=True)
+            sage: I.move_half_edge(4, 6)
+            sage: I
+            OrientedMap("(0,1)(~0,3,2)(~1)(~2)", "(0,2,~2,3,~0,1,~1)")
+        """
+
+        if check:
+            self._check()
+            self._assert_mutable()
+
+        oh = self._ep(h)
+        pre_h = self._fp[oh]
+
+        self._vp[pre_h] = self._vp[h]
+        self._vp[h] = self._vp[c]
+        self._vp[c] = h
+
+        self._fp[oh] = c
+        self._fp[self._ep(self._vp[h])] = h
+        self._fp[self._ep(self._vp[pre_h])] = pre_h
+
+        
 
 # - relabel: keep combinatorics but change labellings
 # - slide or half_edge_slide (possibly flip as a shortcut)
