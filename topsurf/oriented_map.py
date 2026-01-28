@@ -1043,6 +1043,31 @@ class OrientedMap:
             self._check_half_edge(h)
         return perm_orbit_size(self._vp, h)
 
+    def vertex_turn(self, h0, h1):
+        r"""
+        Return the number of turns from h0 to h1 around a vertex
+
+        EXAMPLES:
+
+            sage: from topsurf import OrientedMap
+            
+            sage: m = OrientedMap(vp=[[0, 2, 4, 6], [5, 8, 10, 12], [3, 11, 13, 7, 1, 9]])
+            sage: m.vertex_turn(3, 7)
+            3
+        """
+
+        vp = self.vertex_permutation(copy=False)
+        if h0 == h1:
+            return 0
+        current = vp[h0]
+        turn = 1
+        while current != h0 and current != h1:
+            turn += 1
+            current = vp[current]
+        if current == h0:
+            raise ValueError("The half-edge {} does not belong to the same vertex than the half-edge {}.".format(h0, h1))
+        return turn
+
     def face_degree(self, h, check=True):
         r"""
         Return the degree of the face incident to the half-edge ``h``.
@@ -1058,6 +1083,31 @@ class OrientedMap:
         if check:
             self._check_half_edge(h)
         return perm_orbit_size(self._fp, h)
+
+    def face_turn(self, h0, h1):
+        r"""
+        Return the number of turns from h0 to h1 around a face
+        
+        EXAMPLES:
+
+            sage: from topsurf import OrientedMap
+            
+            sage: m = OrientedMap(vp=[[0, 2, 4, 6], [5, 8, 10, 12], [3, 11, 13, 7, 1, 9]])
+            sage: m.face_turn(0, 8)
+            5
+        """
+
+        fp = self.face_permutation(copy=False)
+        if h0 == h1:
+            return 0
+        current = fp[h0]
+        turn = 1
+        while current != h0 and current != h1:
+            turn += 1
+            current = fp[current]
+        if current == h0:
+            raise ValueError("The half-edge {} does not belong to the same face than the half-edge {}.".format(h0, h1))
+        return turn
 
     def is_connected(self):
         r"""
