@@ -261,7 +261,7 @@ class OrientedMap:
     def _half_edge_string(self, e):
         return '~%d' % (e // 2) if e % 2 else '%d' % (e // 2)
 
-    def __str__(self, *args, **kwds):
+    def __str__(self):
         vp_cycles = perm_cycles(self._vp)
         vertices = perm_cycles_to_string(vp_cycles, edge_like=True)
         fp_cycles = perm_cycles(self._fp)
