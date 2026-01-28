@@ -156,9 +156,18 @@ def turn_remove(s):
     Remove a turn at the end of s if there is one.
     """
     if s:
-        (t, num) = d.pop()
+        (t, num) = s.pop()
         if num > 0:
-            d.append((t,num-1))
+            s.append((t, num-1))
+
+def turn_remove_left(s):
+    r"""
+    Remove a turn at the beginning of s if there is one.
+    """
+    if s:
+        (t, num) = s.popleft()
+        if num > 0:
+            s.appendleft((t, num-1))
 
 def turn_add(s, turn, num):
     r"""
@@ -315,6 +324,9 @@ class QuadSystem:
     def __eq__(self, other):
         return (self._origin_map == other._origin_map) and (self._quad == other._quad) and (self._proj == other._proj)
 
+    def __repr__(self, *args, **kwds):
+        return __repr__(self._quad, *args, **kwds)
+
     def turn(self, h1, h2):
         l1 = self._turn[h1]
         l2 = self._turn[h2]
@@ -364,6 +376,9 @@ class Geodesic:
     def __eq__(self, other):
         return (self._quadsystem == other._quadsystem) and (self._geodesic == other._geodesic)
 
+    def __repr__(self, *args, **kwds):
+        return f"Geodesic \"{self._geodesic}\" with turns \"{self._turn_sequence}\""
+
     def add_edge(self, e):
 
         Q = self._quadsystem._quad
@@ -393,8 +408,176 @@ class Geodesic:
                 turn_add(self._turn_sequence, newturn, 1)
 
 
+    def origin_simplification(self):
+        r"""
+        Perform the geodesic simplification at the based point
+        """
 
+        Q = self._quadsystem._quad
+        fp = Q.face_permutation(copy=False)
+        d = 4 * self._quadsystem._genus
+        geo = self._geodesic
+        s = self._turn_sequence
+        if len(geo) == 0 or len(geo) % 2 == 1:
+            return
+        first_turn = Q.turn(geo[-1], geo[0])
+        
+        while firs_turn == 0 and geo: #spur
+            geo.pop()
+            geo.popleft()
+            turn_remove(s)
+            turn_remove_left(s)
 
+        if first_turn == 1 and len(s) == 1 and s[0][0] == 2: # whole geodesic bracket
+            geo.pop()
+            geo.popleft()
+            l = deque([])
+            for e in geo:
+                e1 = Q._ep(e)
+                l.append(fp[fp[e1]])
+            geo.clear()
+            geo.expend(l)
+            s.append((d - 2, s[0][1] - 2))
+            s.popleft()
+            
+        elif first_turn == d - 1 and len(s) == 1 and s[0][0] == d - 2: # whole geodesic bracket
+            geo.pop()
+            geo.popleft()
+            l = deque([])
+            for e in geo:
+                e1 = Q._ep(e)
+                l.append(fp[fp[e1]])
+            geo.clear()
+            geo.expend(l)
+            s.append((2, s[0][1] - 2))
+            s.popleft()
 
+        elif first_turn == 1 and len(s) >= 1 and s[-1][0] == 1: # bracket ending at the origin
+            geo.popleft()
+            turn_remove_left(s)
+            bracket_removal(Q, geo, s, True, 0, d)
+            if geo:
+                first_turn = Q.turn(geo[-1], geo[0])
+                while first_turn == 0 and geo:
+                    geo.pop()
+                    geo.popleft()
+                    turn_remove(s)
+                    turn_remove_left(s)
+
+        elif first_turn == 1 and len(s) >= 2 and s[-1][0] == 2 and s[-2][0] == 1: # bracket ending at the origin
+            geo.popleft()
+            turn_remove_left(s)
+            bracket_removal(Q, geo, s, True, s[-1][1], d)
+            if geo:
+                first_turn = Q.turn(geo[-1], geo[0])
+                while first_turn == 0 and geo:
+                    geo.pop()
+                    geo.popleft()
+                    turn_remove(s)
+                    turn_remove_left(s)
+
+        elif first_turn == d - 1 and len(s) >= 1 and s[-1][0] == d - 1: # bracket ending at the origin
+            geo.popleft()
+            turn_remove_left(s)
+            bracket_removal(Q, geo, s, False, 0, d)
+            if geo:
+                first_turn = Q.turn(geo[-1], geo[0])
+                while first_turn == 0 and geo:
+                    geo.pop()
+                    geo.popleft()
+                    turn_remove(s)
+                    turn_remove_left(s)
+                    
+        elif first_turn == d - 1 and len(s) >= 2 and s[-1][0] == d - 2 and s[-2][0] == d - 1: # bracket ending at the origin
+            geo.popleft()
+            turn_remove_left(s)
+            bracket_removal(Q, geo, s, False, s[-1][1], d)
+            if geo:
+                first_turn = Q.turn(geo[-1], geo[0])
+                while first_turn == 0 and geo:
+                    geo.pop()
+                    geo.popleft()
+                    turn_remove(s)
+                    turn_remove_left(s)
+
+        elif first_turn == 1 and len(s) >= 1 and s[0][0] == 1: # bracket starting at the origin
+            geo.pop()
+            turn_remove(s)
+            bracket_removal_left(Q, geo, s, True, 0, d)
+            if geo:
+                first_turn = Q.turn(geo[-1], geo[0])
+                while first_turn == 0 and geo:
+                    geo.pop()
+                    geo.popleft()
+                    turn_remove(s)
+                    turn_remove_left(s)
+
+        elif first_turn == 1 and len(s) >= 2 and s[0][0] == 2 and s[1][0] == 1: # bracket starting at the origin
+            geo.pop()
+            turn_remove(s)
+            bracket_removal_left(Q, geo, s, True, s[-1][1], d)
+            if geo:
+                first_turn = Q.turn(geo[-1], geo[0])
+                while first_turn == 0 and geo:
+                    geo.pop()
+                    geo.popleft()
+                    turn_remove(s)
+                    turn_remove_left(s)
+
+        elif first_turn == d - 1 and len(s) >= 1 and s[0][0] == d - 1: # bracket starting at the origin
+            geo.pop()
+            turn_remove(s)
+            bracket_removal_left(Q, geo, s, False, 0, d)
+            if geo:
+                first_turn = Q.turn(geo[-1], geo[0])
+                while first_turn == 0 and geo:
+                    geo.pop()
+                    geo.popleft()
+                    turn_remove(s)
+                    turn_remove_left(s)
+                    
+        elif first_turn == d - 1 and len(s) >= 2 and s[0][0] == d - 2 and s[1][0] == d - 1: # bracket starting at the origin
+            geo.pop()
+            turn_remove(s)
+            bracket_removal_left(Q, geo, s, False, s[-1][1], d)
+            if geo:
+                first_turn = Q.turn(geo[-1], geo[0])
+                while first_turn == 0 and geo:
+                    geo.pop()
+                    geo.popleft()
+                    turn_remove(s)
+                    turn_remove_left(s)
+
+        elif first_turn == 2 and len(s) >= 3: # bracket containing the origin
+            while first_turn == 2:
+                geo.append(geo.popleft())
+                (t, n) = s.popleft()
+                if n != 1:
+                    s.appendleft((t, n - 1))
+                (t2, n2) = s.pop()
+                if t2==2:
+                    s.append((2, n2 + 1))
+                else:
+                    s.append((t2, n2))
+                    s.append((2, 1))
+                first_turn = t
+            if first_turn == 1 and s[-2][0] == 1:
+                bracket_removal(Q, geo, s, True, s[-1][1], d)
+
+        elif first_turn == d - 2 and len(s) >= 3: # bracket containing the origin
+            while first_turn == d - 2:
+                geo.append(geo.popleft())
+                (t, n) = s.popleft()
+                if n != 1:
+                    s.appendleft((t, n - 1))
+                (t2, n2) = s.pop()
+                if t2==2:
+                    s.append((2, n2 + 1))
+                else:
+                    s.append((t2, n2))
+                    s.append((2, 1))
+                first_turn = t
+            if first_turn == d - 1 and s[-2][0] == d - 1:
+                bracket_removal(Q, geo, s, False, s[-1][1], d)
 
 
