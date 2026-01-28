@@ -428,7 +428,7 @@ class OrientedMap:
         return e
 
     # TODO: convention for external face?
-    def graph(self, oriented=False, subdivide=True):
+    def graph(self, oriented=False, subdivide=True, root=None):
         r"""
         Return the sage graph and the embedding associated to this map.
 
@@ -449,12 +449,15 @@ class OrientedMap:
         # NOTE: sage graphs use *clockwise* order for the neighbors
         if self.has_folded_edge():
             raise NotImplementedError
+        
+        if root is None:
+            root = len(self._vp)-2
 
         vertices = self.vertices()
-        half_edge_to_vertex = [-1] * (2 * len(self._vp))
+        half_edge_start = [-1] * (2 * len(self._vp))
         for i, v in enumerate(vertices):
             for j in v:
-                half_edge_to_vertex[j] = i
+                half_edge_start[j] = i
 
         embedding = {}
 
@@ -467,13 +470,13 @@ class OrientedMap:
 
         edges = collections.defaultdict(list)
         for e in range(len(self._vp) // 2):
-            u = half_edge_to_vertex[2 * e]
-            v = half_edge_to_vertex[2 * e + 1]
+            u = half_edge_start[2 * e]
+            v = half_edge_start[2 * e + 1]
             if not oriented and v > u:
                 u, v = v, u
             edges[(u, v)].append(e)
 
-        half_edge_end = [half_edge_to_vertex[h ^ 1] for h in range(len(self._vp))]
+        half_edge_end = [half_edge_start[h ^ 1] for h in range(len(self._vp))]
 
         if subdivide:
             loops = []
@@ -505,19 +508,24 @@ class OrientedMap:
                     G.add_edge(u, v, e)
         else:
             for e in range(0, len(self._vp) // 2):
-                G.add_edge(half_edge_to_vertex[2 * e], half_edge_to_vertex[2 * e + 1], e)
+                G.add_edge(half_edge_start[2 * e], half_edge_start[2 * e + 1], e)
+
+        root_edge = (half_edge_start[root], half_edge_end[root])
 
         for i, v in enumerate(vertices):
             embedding[i] = []
             for j in reversed(v):
                 embedding[i].append(half_edge_end[j])
 
-        return G, embedding
+        return G, embedding, root_edge
 
-    def plot(self):
-        G, em = self.graph()
-        pos = G.layout_planar(on_embedding=em, external_face=0)
-        return G.plot(pos=pos, vertex_labels=False, edge_labels=True)
+    def plot(self, oriented=False, subdivide=True, root=None, edge_labels=True, vertex_colors=None):
+        G, em, r = self.graph(oriented=oriented, subdivide=subdivide, root=root)
+        pos = G.layout_planar(on_embedding=em, external_face=r)
+        if vertex_colors is None:
+            vertex_colors={'red':list(range(self.num_vertices()))}
+        vertex_colors['#C0C0C0'] = list(range(self.num_vertices(), G.order()))
+        return G.plot(pos=pos, vertex_labels=False, edge_labels=edge_labels, vertex_colors=vertex_colors)
 
     def to_string(self):
         r"""
