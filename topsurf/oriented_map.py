@@ -49,8 +49,8 @@ def check_relabelling(arg, ne):
     r"""
     EXAMPLES::
 
-        sage: from veerer.constellation import check_relabelling
-        sage: from veerer.permutation import perm_cycle_string
+        sage: from topsurf.oriented_map import check_relabelling
+        sage: from topsurf.permutation import perm_cycle_string
         sage: p = check_relabelling("(0,1,2)", 3)
         sage: perm_cycle_string(p, edge_like=True)
         '(0,1,2)(~0,~1,~2)'
@@ -372,21 +372,21 @@ class OrientedMap:
 
         TESTS::
 
-            sage: from veerer import Triangulation
-            sage: Triangulation("(0,1,~1)")._check_half_edge(0)
+            sage: from topsurf import OrientedMap
+            sage: OrientedMap("(0,1,~1)")._check_half_edge(0)
             0
-            sage: Triangulation("(0,1,~1)")._check_half_edge(-4)
+            sage: OrientedMap("(0,1,~1)")._check_half_edge(-4)
             Traceback (most recent call last):
             ...
-            ValueError: half-edge number out of range h=-4
-            sage: Triangulation("(0,1,~1)")._check_half_edge(12)
+            ValueError: half-edge number out of range (=-4)
+            sage: OrientedMap("(0,1,~1)")._check_half_edge(12)
             Traceback (most recent call last):
             ...
-            ValueError: half-edge number out of range h=12
-            sage: Triangulation("(0,1,~1)")._check_half_edge(1)
+            ValueError: half-edge number out of range (=12)
+            sage: OrientedMap("(0,1,~1)")._check_half_edge(1)
             Traceback (most recent call last):
             ...
-            ValueError: invalid half-edge h=1; the underlying edges is folded
+            ValueError: invalid half-edge (=1); the underlying edge is folded
         """
         if not isinstance(h, numbers.Integral):
             raise TypeError(f"invalid half-edge {h} of type {type(h).__name__}")
@@ -427,29 +427,35 @@ class OrientedMap:
             raise ValueError(f"inactive edge e={e}")
         return e
 
-    # TODO: convention for external face?
     def graph(self, oriented=False, subdivide=True, root=None):
         r"""
-        Return the sage graph and the embedding associated to this map.
+        Return the sage graph, the embedding and the root edge associated to this map.
 
         INPUT:
+
+        - ``oriented`` (boolean, default ``False``) -- whether to return a SageMath
+          ``Graph`` or ``DiGraph``
 
         - ``subdivide`` (boolean, default ``False``) -- if ``True`` then insert
           one vertex on each edge and two vertices on each loop so that the
           resulting graph is simple.
 
+        - ``root`` (``None`` or a valid half-edge) -- if specified, it should be
+          a half-edge that is used to identify the external face in planar drawings
+
         EXAMPLES::
 
             sage: from topsurf import OrientedMap
             sage: m = OrientedMap(vp="(0,~2)(~0,3,1)(~1,~5,2)(~3,4)(~4,5)")
-            sage: G, em = m.graph()
-            sage: pos = G.layout_planar(on_embedding=em, external_face=0)
+            sage: G, em, root = m.graph()
+            sage: pos = G.layout_planar(on_embedding=em, external_face=root)
             sage: G.plot(pos=pos, vertex_labels=False, edge_labels=True)
+            Graphics object consisting of ... graphics primitives
         """
         # NOTE: sage graphs use *clockwise* order for the neighbors
         if self.has_folded_edge():
             raise NotImplementedError
-        
+
         if root is None:
             root = len(self._vp)-2
 
@@ -527,36 +533,6 @@ class OrientedMap:
         vertex_colors['#C0C0C0'] = list(range(self.num_vertices(), G.order()))
         return G.plot(pos=pos, vertex_labels=False, edge_labels=edge_labels, vertex_colors=vertex_colors)
 
-    def to_string(self):
-        r"""
-        Serialize this oriented map as a string.
-
-        EXAMPLES::
-
-            sage: from veerer import Triangulation, VeeringTriangulation, StrebelGraph
-
-            sage: Triangulation("(0,1,2)(~0,~1,~2)").to_string()
-            '3_1___234501_000000'
-            sage: Triangulation("(0,1,2)", boundary="(~0:1)(~1:1,~2:1)").to_string()
-            '3_1___214503_010101'
-
-            sage: VeeringTriangulation("(0,1,2)", "RRB").to_string()
-            '3_1_1__2~4~0~_000000_112'
-
-            sage: StrebelGraph("(0,1,2)(~0,~1:1,~2:2)").to_string()
-            '3_1___234501_000102'
-        """
-        data = [uint_base64_str(self._ne),
-                uint_base64_str(len(self._half_edges_data)),
-                uint_base64_str(len(self._edges_data)),
-                uint_base64_str(self._mutable),
-                perm_base64_str(self._fp)]
-        for l in self._half_edges_data:
-            data.append(perm_base64_str(l))
-        for l in self._edges_data:
-            data.append(perm_base64_str(l))
-        return '_'.join(data)
-
     def __eq__(self, other):
         return self._vp == other._vp
 
@@ -568,8 +544,8 @@ class OrientedMap:
         TESTS::
 
             sage: import itertools
-            sage: from veerer import Triangulation
-            sage: ts = [Triangulation("(0,1,2)"), Triangulation("(0:1,1:1,2:1)"), Triangulation("(0:1,1:1,2:2)"), Triangulation("(0,1,2)(~0,~1,~2)"), Triangulation("(0,1,2)(~0,~1,~2)"), Triangulation("(0,~0,1)(~1,2,~2)")]
+            sage: from topsurf import OrientedMap
+            sage: ts = [OrientedMap(fp="(0,1,2)"), OrientedMap(fp="(0,1,2)(~0,~1,~2)"), OrientedMap(fp="(0,1,2)(~0,~2,~1)"), OrientedMap(fp="(0,~0,1)(~1,2,~2)")]
             sage: for t1, t2 in itertools.product(ts, repeat=2):
             ....:     c1 = t1._cmp_(t2)
             ....:     c2 = t2._cmp_(t1)
@@ -579,15 +555,7 @@ class OrientedMap:
         if type(self) is not type(other):
             raise TypeError("can not compare {} with {}".format(type(self).__name__, type(other).__name__))
 
-        c = (self._ne > other._ne) - (self._ne < other._ne)
-        if c:
-            return c
-
-        c = (self._fp > other._fp) - (self._fp < other._fp)
-        if c:
-            return c
-
-        return c
+        return (self._vp > other._vp) - (self._vp < other._vp)
 
     def _richcmp_(self, other, op):
         r"""
@@ -596,27 +564,20 @@ class OrientedMap:
         EXAMPLES::
 
             sage: import itertools
-            sage: from veerer import Triangulation, VeeringTriangulation
+            sage: from topsurf import OrientedMap
 
-            sage: ts = [Triangulation("(0,1,2)"), Triangulation("(0:1,1:1,2:1)"), Triangulation("(0:1,1:1,2:2)"), Triangulation("(0,1,2)(~0,~1,~2)"), Triangulation("(0,1,2)(~0,~1,~2)"), Triangulation("(0,~0,1)(~1,2,~2)")]
-            sage: for t1, t2 in itertools.product(ts, repeat=2):
-            ....:     if t1 == t2:
-            ....:         assert (t1 <= t2)
-            ....:         assert (t1 >= t2)
-            ....:         assert not (t1 < t2)
-            ....:         assert not (t1 > t2)
+            sage: ts = [OrientedMap("(0,1,2)"), OrientedMap("(0,1,2)(~0,~1,~2)"), OrientedMap("(0,~0,1)(~1,2,~2)")]
+            sage: for m1, m2 in itertools.product(ts, repeat=2):
+            ....:     if m1 == m2:
+            ....:         assert (m1 <= m2)
+            ....:         assert (m1 >= m2)
+            ....:         assert not (m1 < m2)
+            ....:         assert not (m1 > m2)
             ....:     else:
-            ....:         assert (t1 < t2) + (t2 < t1) == 1
-            ....:         assert (t1 > t2) + (t2 > t1) == 1
-            ....:         assert (t1 < t2) == (t1 <= t2)
-            ....:         assert (t1 > t2) == (t1 >= t2)
-
-            sage: vt0 = VeeringTriangulation("(0:1)(~0:1,1:1,2:1)(~1:1,~2:1,3:1)(~3:1)", "RRBR")
-            sage: vt1 = VeeringTriangulation("(0:1)(~0:1,1:1,2:1)(~1:1,~2:1,3:1)(~3:1)", "BRRB")
-            sage: (vt0 < vt1) + (vt0 == vt1) + (vt0 > vt1)
-            1
-            sage: (vt1 < vt0) + (vt1 == vt0) + (vt1 > vt0)
-            1
+            ....:         assert (m1 < m2) + (m2 < m1) == 1
+            ....:         assert (m1 > m2) + (m2 > m1) == 1
+            ....:         assert (m1 < m2) == (m1 <= m2)
+            ....:         assert (m1 > m2) == (m1 >= m2)
         """
         if type(self) is not type(other):
             raise TypeError("can not compare {} with {}".format(type(self).__name__, type(other).__name__))
@@ -956,7 +917,7 @@ class OrientedMap:
         """
         return sum(self._vp[i] != -1 or self._vp[i + 1] != -1 for i in range(0, len(self._vp), 2))
 
-    def edges(self):
+    def edge_indices(self):
         r"""
         Return the list of edge indices.
 
@@ -964,12 +925,12 @@ class OrientedMap:
 
             sage: from topsurf import OrientedMap
 
-            sage: OrientedMap(fp="(0,1,2)(3,4,5)(~0,~3,6)").edges()
-            sage: OrientedMap(fp="(1,2)(3,5)(~3,6)").edges()
+            sage: OrientedMap(fp="(0,1,2)(3,4,5)(~0,~3,6)").edge_indices()
+            [0, 1, 2, 3, 4, 5, 6]
+            sage: OrientedMap(fp="(1,2)(3,5)(~3,6)").edge_indices()
+            [1, 2, 3, 5, 6]
         """
-        for e in range(len(self._vp) // 2):
-            if self._vp[2 * e] != -1:
-                yield e
+        return [e for e in range(len(self._vp) // 2) if self._vp[2 * e] != -1]
 
     def vertices(self):
         r"""
@@ -982,11 +943,26 @@ class OrientedMap:
             sage: m = OrientedMap(fp="(0,1,2)(3,4,5)(~0,~3,6)")
             sage: m.vertices()
             [[0, 4, 2, 1, 12, 6, 10, 8, 7]]
+
+            sage: OrientedMap("").vertices()
+            [[]]
         """
+        if not self._vp:
+            return [[]]
         return perm_cycles(self._vp, True)
 
     def vertex_profile(self):
-        return sorted(perm_cycles_lengths(self._vp), reverse=True)
+        r"""
+        EXAMPLES::
+
+            sage: from topsurf import OrientedMap
+
+            sage: OrientedMap("(0,3)(~0,1,~3,~1)").vertex_profile()
+            [2, 4]
+            sage: OrientedMap("","").vertex_profile()
+            [0]
+        """
+        return [len(v) for v in self.vertices()]
 
     def num_vertices(self):
         r"""
@@ -1000,7 +976,12 @@ class OrientedMap:
             1
             sage: OrientedMap(fp="(3,~3)").num_vertices()
             2
+
+            sage: OrientedMap("").num_vertices()
+            1
         """
+        if not self._vp:
+            return 1
         return perm_num_cycles(self._vp)
 
     def faces(self):
@@ -1014,11 +995,28 @@ class OrientedMap:
             sage: m = OrientedMap(fp="(0,1,2)(3,4,5)(~3,6)")
             sage: m.faces()
             [[0, 2, 4], [6, 8, 10], [7, 12]]
+
+            sage: OrientedMap("").faces()
+            [[]]
         """
+        if not self._vp:
+            return [[]]
         return perm_cycles(self._fp, True)
 
     def face_profile(self):
-        return sorted(perm_cycles_lengths(self._fp), reverse=True)
+        r"""
+        Return the face degrees.
+
+        EXAMPLES::
+
+            sage: from topsurf import OrientedMap
+
+            sage: OrientedMap("(0,3)(~0,1,~3,~1)").face_profile()
+            [6]
+            sage: OrientedMap("").face_profile()
+            [0]
+        """
+        return [len(f) for f in self.faces()]
 
     def num_faces(self):
         r"""
@@ -1032,7 +1030,11 @@ class OrientedMap:
             3
             sage: OrientedMap(fp="(2,~2)").num_faces()
             1
+            sage: OrientedMap("").num_faces()
+            1
         """
+        if not self._vp:
+            return 1
         return perm_num_cycles(self._fp)
 
     def vertex_degree(self, h, check=True):
@@ -1223,8 +1225,7 @@ class OrientedMap:
 
         A torus::
 
-            sage: m = OrientedMap(fp="(0,1,2)(~0,~1,~2)")
-            sage: m.euler_characteristic()
+            sage: OrientedMap(fp="(0,1,2)(~0,~1,~2)").euler_characteristic()
             0
 
         A genus 2 surface::
@@ -1233,10 +1234,10 @@ class OrientedMap:
             sage: m.euler_characteristic()
             -2
 
-        A cylinder::
+        The empty map is a sphere::
 
-            sage: m.euler_characteristic()
-            0
+            sage: OrientedMap("").euler_characteristic()
+            2
         """
         return self.num_faces() - self.num_edges() + (self.num_vertices() + self.num_folded_edges())
 
