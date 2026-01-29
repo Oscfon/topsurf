@@ -157,7 +157,7 @@ def turn_remove(s):
     """
     if s:
         (t, num) = s.pop()
-        if num > 0:
+        if num > 1:
             s.append((t, num-1))
 
 def turn_remove_left(s):
@@ -166,7 +166,7 @@ def turn_remove_left(s):
     """
     if s:
         (t, num) = s.popleft()
-        if num > 0:
+        if num > 1:
             s.appendleft((t, num-1))
 
 def turn_add(s, turn, num):
@@ -425,7 +425,7 @@ class Geodesic:
             h0 = geo[0]
             for index in range(1, len(geo)):
                 h1 = geo[index]
-                self._turn_sequence.append(Q.turn(Q._origin_map._ep(h0), h1))
+                turn_add(self._turn_sequence, Q.turn(Q._quad._ep(h0), h1), 1)
                 h0 = h1
         else:
             if check:
@@ -575,6 +575,43 @@ class Geodesic:
     def origin_simplification(self):
         r"""
         Perform the geodesic simplification at the based point
+
+        EXAMPLES::
+
+            sage: from topsurf import OrientedMap, QuadSystem, Geodesic
+            sage: m = OrientedMap(vp=[[0, 2, 4, 6], [5, 8, 10, 12], [3, 11, 13, 7, 1, 9]])
+            sage: Q = QuadSystem(m)
+            sage: Q
+            OrientedMap("(0,1,2,3,4,5,6,7)(~0,~3,~5,~1,~6,~2,~4,~7)", "(0,~7,6,~1)(~0,7,~4,3)(1,~5,4,~2)(2,~6,5,~3)")
+            sage: p = Geodesic(Q, [5, 12, 3, 4])
+            sage: p.origin_simplification()
+            sage: p
+            Geodesic "deque([12, 3])" with turns "deque([(7, 1)])"
+            
+            sage: p = Geodesic(Q, [2, 5, 8, 1])
+            sage: p.origin_simplification()
+            sage: p
+            Geodesic "deque([10, 1])" with turns "deque([(6, 1)])"
+            
+            sage: p = Geodesic(Q, [0, 9, 4, 3])
+            sage: p.origin_simplification()
+            sage: p
+            Geodesic "deque([2, 11])" with turns "deque([(2, 1)])"
+
+            sage: p = Geodesic(Q, [6, 13, 4, 7, 12, 5])
+            sage: p.origin_simplification()
+            sage: p
+            Geodesic "deque([13, 4, 7, 10])" with turns "deque([(4, 2), (2, 1)])"
+
+            sage: p = Geodesic(Q, [10, 1, 12, 3, 14, 7, 2, 13])
+            sage: p.origin_simplification()
+            sage: p
+            Geodesic "deque([5, 8, 1, 14, 7, 2])" with turns "deque([(2, 2), (7, 1), (2, 1), (6, 1)])"
+
+            sage: p = Geodesic(Q, [1, 12, 3, 14, 7, 2, 13, 10])
+            sage: p.origin_simplification()
+            sage: p
+            Geodesic "deque([14, 7, 2, 5, 8, 1])" with turns "deque([(2, 1), (6, 1), (2, 3)])"
         """
 
         Q = self._quadsystem._quad
@@ -680,7 +717,7 @@ class Geodesic:
         elif first_turn == 1 and len(s) >= 2 and s[0][0] == 2 and s[1][0] == 1: # bracket starting at the origin
             geo.pop()
             turn_remove(s)
-            bracket_removal_left(Q, geo, s, True, s[-1][1], d)
+            bracket_removal_left(Q, geo, s, True, s[0][1], d)
             if geo:
                 first_turn = self._quadsystem.turn(Q._ep(geo[-1]), geo[0])
                 while first_turn == 0 and geo:
@@ -704,7 +741,7 @@ class Geodesic:
         elif first_turn == d - 1 and len(s) >= 2 and s[0][0] == d - 2 and s[1][0] == d - 1: # bracket starting at the origin
             geo.pop()
             turn_remove(s)
-            bracket_removal_left(Q, geo, s, False, s[-1][1], d)
+            bracket_removal_left(Q, geo, s, False, s[0][1], d)
             if geo:
                 first_turn = self._quadsystem.turn(Q._ep(geo[-1]), geo[0])
                 while first_turn == 0 and geo:
@@ -728,6 +765,8 @@ class Geodesic:
                 first_turn = t
             if first_turn == 1 and s[-2][0] == 1:
                 bracket_removal(Q, geo, s, True, s[-1][1], d)
+                geo.popleft()
+                turn_remove_left(s)
 
         elif first_turn == d - 2 and len(s) >= 3: # bracket containing the origin
             while first_turn == d - 2:
@@ -744,5 +783,7 @@ class Geodesic:
                 first_turn = t
             if first_turn == d - 1 and s[-2][0] == d - 1:
                 bracket_removal(Q, geo, s, False, s[-1][1], d)
+                geo.popleft()
+                turn_remove_left(s)
 
 
