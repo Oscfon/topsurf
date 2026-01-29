@@ -2766,6 +2766,8 @@ class OrientedMap:
         if check:
             self._assert_mutable()
             self._check()
+            for c in corners:
+                self._check_half_edge(c)
 
         for i in range(len(corners)-1):
             c0 = corners[i]
@@ -2782,7 +2784,7 @@ class OrientedMap:
 
     def move_half_edge(self, h, c, check=True):
         r"""
-        Move the half_edge h to the corner after c.
+        Move the half_edge h to the corner after c. If c is negative then create a new vertex and attach h to it.
 
         EXAMPLES::
 
@@ -2800,22 +2802,33 @@ class OrientedMap:
             sage: I.move_half_edge(4, 6)
             sage: I
             OrientedMap("(0,1)(~0,3,2)(~1)(~2)", "(0,2,~2,3,~0,1,~1)")
+
+            sage: M = OrientedMap(vp = "(0,~1)(~0,2,5)(1,~2)(3,4)(~3,~4,~5)", mutable = True)
+            sage: M.move_half_edge(10, -2)
+            sage: M
+            OrientedMap("(0,~1)(~0,2)(1,~2)(3,4)(~3,~4,~5)(5)", "(0,2,1)(~0,~1,~2)(3,~5,5,~4)(~3,4)")
         """
 
         if check:
             self._check()
             self._assert_mutable()
+            h = self._check_half_edge(h)
+            c = self._check_half_edge_or_negative(c)
 
         oh = self._ep(h)
         pre_h = self._fp[oh]
-
+    
         self._vp[pre_h] = self._vp[h]
-        self._vp[h] = self._vp[c]
-        self._vp[c] = h
-
-        self._fp[oh] = c
-        self._fp[self._ep(self._vp[h])] = h
+        if c >= 0:
+            self._vp[h] = self._vp[c]
+            self._vp[c] = h    
+            self._fp[oh] = c           
+        else:
+            self._vp[h] = h            
+            self._fp[oh] = h
+        self._fp[self._ep(self._vp[h])] = h 
         self._fp[self._ep(self._vp[pre_h])] = pre_h
+            
             
 
         
