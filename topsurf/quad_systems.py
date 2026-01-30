@@ -293,6 +293,44 @@ def bracket_removal_left(Q, geo, s, positive, length, d):
         turn_add_left(s, 2, length)
 
 
+def test_KMP(u, v):
+    r"""
+    Test if u is a subword of v in O(|u|+|v|).
+    """
+    if len(u) == 0:
+        return True
+    elif len(v) == 0:
+        return False
+    cnd = 0
+    T = [-1]
+    for i in range(1, len(u)):
+        if u[i] == u[cnd]:
+            T.append(u[cnd])
+        else:
+            T.append(cnd)
+            while cnd>=0 and u[i] == u[cnd]:
+                cnd = T[cnd]
+            cnd += 1
+    j = 0
+    k = 0
+    res = False
+    while j < len(v) and not res:
+        if u[k] == v[j]:
+            j += 1
+            k += 1
+            if k == len(u):
+                res = True
+        else:
+            k = T[k]
+            if k == -1:
+                k += 1
+                j += 1
+    return res
+
+
+
+
+
 class QuadSystem:
 
     #TODO : Documentation
@@ -412,6 +450,16 @@ class Geodesic:
             _quadsystem: the underlying quad system
             _geodesic: the canonical geodesic representative in the quad system (as a deque !)
             _turn_sequence: the turn sequence associated to _geodesic
+
+        EXAMPLES::
+
+            sage: from topsurf import OrientedMap, QuadSystem, Geodesic
+            sage: m = OrientedMap(vp=[[0, 2, 4, 6], [5, 8, 10, 12], [3, 11, 13, 7, 1, 9]])
+            sage: Q = QuadSystem(m)
+            sage: Q
+            OrientedMap("(0,1,2,3,4,5,6,7)(~0,~3,~5,~1,~6,~2,~4,~7)", "(0,~7,6,~1)(~0,7,~4,3)(1,~5,4,~2)(2,~6,5,~3)")
+            sage: p = Geodesic(Q)
+            sage: TestSuite(p).run()
         """
         self._quadsystem = Q
         if geo == None or not geo:
@@ -439,6 +487,42 @@ class Geodesic:
 
     def __repr__(self, *args, **kwds):
         return f"Geodesic \"{self._geodesic}\" with turns \"{self._turn_sequence}\""
+
+    def __len__(self):
+        r"""
+        EXAMPLES::
+
+            sage: from topsurf import OrientedMap, QuadSystem, Geodesic
+            sage: m = OrientedMap(vp=[[0, 2, 4, 6], [5, 8, 10, 12], [3, 11, 13, 7, 1, 9]])
+            sage: Q = QuadSystem(m)
+            sage: Q
+            OrientedMap("(0,1,2,3,4,5,6,7)(~0,~3,~5,~1,~6,~2,~4,~7)", "(0,~7,6,~1)(~0,7,~4,3)(1,~5,4,~2)(2,~6,5,~3)")
+            sage: p = Geodesic(Q)
+            sage: len(p)
+            0
+            sage: q = Geodesic(Q, [2, 5, 8, 1])
+            sage: len(q)
+            4
+        """
+        return len(self._geodesic)
+    
+    def __iter__(self):
+        r"""
+        EXAMPLES::
+
+            sage: from topsurf import OrientedMap, QuadSystem, Geodesic
+            sage: m = OrientedMap(vp=[[0, 2, 4, 6], [5, 8, 10, 12], [3, 11, 13, 7, 1, 9]])
+            sage: Q = QuadSystem(m)
+            sage: Q
+            OrientedMap("(0,1,2,3,4,5,6,7)(~0,~3,~5,~1,~6,~2,~4,~7)", "(0,~7,6,~1)(~0,7,~4,3)(1,~5,4,~2)(2,~6,5,~3)")
+            sage: p = Geodesic(Q)
+            sage: list(iter(p))
+            []
+            sage: q = Geodesic(Q, [2, 5, 8, 1])
+            sage: list(iter(q))
+            [2, 5, 8, 1]
+        """
+        yield from self._geodesic
 
     def add_edge(self, e):
         r"""
@@ -612,6 +696,11 @@ class Geodesic:
             sage: p.origin_simplification()
             sage: p
             Geodesic "deque([14, 7, 2, 5, 8, 1])" with turns "deque([(2, 1), (6, 1), (2, 3)])"
+
+            sage: p = Geodesic(Q, [0, 11, 14, 1, 4, 15])
+            sage: p.origin_simplification()
+            sage: p
+            Geodesic "deque([4, 11])" with turns "deque([(5, 1)])"
         """
 
         Q = self._quadsystem._quad
@@ -654,7 +743,7 @@ class Geodesic:
             s.append((2, s[0][1] - 2))
             s.popleft()
 
-        elif first_turn == 1 and len(s) >= 1 and s[-1][0] == 1: # bracket ending at the origin
+        if first_turn == 1 and len(s) >= 1 and s[-1][0] == 1: # bracket ending at the origin
             geo.popleft()
             turn_remove_left(s)
             bracket_removal(Q, geo, s, True, 0, d)
@@ -702,7 +791,7 @@ class Geodesic:
                     turn_remove(s)
                     turn_remove_left(s)
 
-        elif first_turn == 1 and len(s) >= 1 and s[0][0] == 1: # bracket starting at the origin
+        if first_turn == 1 and len(s) >= 1 and s[0][0] == 1: # bracket starting at the origin
             geo.pop()
             turn_remove(s)
             bracket_removal_left(Q, geo, s, True, 0, d)
@@ -750,7 +839,7 @@ class Geodesic:
                     turn_remove(s)
                     turn_remove_left(s)
 
-        elif first_turn == 2 and len(s) >= 3: # bracket containing the origin
+        if first_turn == 2 and len(s) >= 3: # bracket containing the origin
             while first_turn == 2:
                 geo.append(geo.popleft())
                 (t, n) = s.popleft()
@@ -786,4 +875,226 @@ class Geodesic:
                 geo.popleft()
                 turn_remove_left(s)
 
+    def canonical(self):
+        r"""
+        Perform the right push to the cyclic geodesic path to make it canonical.
 
+        EXAMPLES::
+
+            sage: from topsurf import OrientedMap, QuadSystem, Geodesic
+            sage: m = OrientedMap(vp=[[0, 2, 4, 6], [5, 8, 10, 12], [3, 11, 13, 7, 1, 9]])
+            sage: Q = QuadSystem(m)
+            sage: Q
+            OrientedMap("(0,1,2,3,4,5,6,7)(~0,~3,~5,~1,~6,~2,~4,~7)", "(0,~7,6,~1)(~0,7,~4,3)(1,~5,4,~2)(2,~6,5,~3)")
+            
+            sage: p = Geodesic(Q, [6, 3])
+            sage: p.canonical()
+            sage: p
+            Geodesic "deque([13, 8])" with turns "deque([(6, 1)])"
+            
+            sage: p = Geodesic(Q, [0, 11, 14, 7, 10, 9, 4, 15])
+            sage: p.canonical()
+            sage: p
+            Geodesic "deque([11, 4, 3, 14, 5, 2, 9, 2])" with turns "deque([(5, 1), (6, 3), (7, 1), (3, 1), (5, 1)])"
+
+            sage: p = Geodesic(Q, [0, 11, 14, 7, 10, 15])
+            sage: p.canonical()
+            sage: p
+            Geodesic "deque([9, 4, 3, 14, 5, 2])" with turns "deque([(6, 4), (7, 1)])"
+        """
+
+        Q = self._quadsystem._quad
+        fp = Q.face_permutation(copy=False)
+        vp = Q.vertex_permutation(copy=False)
+        d = 4 * self._quadsystem._genus
+        geo = self._geodesic
+        s = self._turn_sequence
+        
+        if len(geo) % 2 == 1:
+            raise ValueError("This is not a cyclic geodesic path")
+        elif len(geo) == 0:
+            return
+
+        self.origin_simplification()
+        first_turn = self._quadsystem.turn(Q._ep(geo[-1]), geo[0])
+        
+        if first_turn == 2 and len(s) == 1 and s[0][0] == 2: # whole geodesic of turn 2
+            l = deque([])
+            for e in geo:
+                e1 = Q._ep(e)
+                l.append(fp[fp[e1]])
+            geo.clear()
+            geo.extend(l)
+            m = s[0][1]
+            s.clear()
+            s.append((d - 2, m))
+            
+        else:
+            i = 0
+            finish = False
+            while i <= len(geo):
+                if first_turn == 1: # left L
+                    if s[0][0] == 2 and s[-1][0] == 2:
+                        (t1, n1) = s.pop()
+                        (t2, n2) = s.popleft()
+                    elif s[0][0] == 2:
+                        n1 = 0
+                        (t2, n2) = s.popleft()
+                    elif s[-1][0] == 2:
+                        n2 = 0
+                        (t1, n1) = s.pop()
+                    else:
+                        n1 = 0
+                        n2 = 0
+                        
+                    if n1 != 0 and n2 != 0:
+                        first_turn = d - 3
+                    elif n1 != 0 or n2 != 0:
+                        first_turn = d - 2
+                    else:
+                        first_turn = d - 1
+                        
+                    if len(s) == 0: # whole path bracket. Should have been cleared at origin_simplification
+                        raise ValueError("The path was not geodesic")
+                    elif len(s) == 1 and s[0][1] == 1: # whole geodesic is a L
+                        (t3, n3) = s.pop()
+                        finish = True
+                        if t3 == 3:
+                            turn_add(s, d - 2, n2)
+                            turn_add(s, d - 1, 1)
+                            turn_add(s, d - 2, n1)
+                            l = deque([])
+                            e = geo[0]
+                            for j in range(n2):
+                                e = geo[1 + j]
+                                e1 = Q._ep(e)
+                                l.append(fp[fp[e1]])
+                            x = fp[vp[e1]]
+                            l.append(x)
+                            l.append(fp[x])
+                            for j in range(n1 + 1, 1, -1):
+                                e = geo[-j]
+                                e1 = Q._ep(e)
+                                l.append(fp[fp[e1]])
+                            geo.clear()
+                            geo.extend(l)
+                        else:
+                            turn_add(s, d - 2, n2 - 1)
+                            if n2 != 0:
+                                turn_add(s, d - 1, 1)
+                            turn_add(s, t3 - 2, 1)
+                            if n1 != 0:
+                                turn_add(s, d - 1, 1)
+                            turn_add(s, d - 2, n1 - 1)
+                            l = deque([])
+                            for j in range(n2):
+                                e = geo[1 + j]
+                                e1 = Q._ep(e)
+                                l.append(fp[fp[e1]])
+                            x = vp[e1]
+                            l.append(Q._ep(x))
+                            y = geo[n2 + 1]
+                            l.append(Q.previous_at_vertex(y))
+                            for j in range(n1 + 1, 1, -1):
+                                e = geo[-j]
+                                e1 = Q._ep(e)
+                                l.append(fp[fp[e1]])
+                            geo.clear()
+                            geo.extend(l)
+                            
+                    else: # general L
+                        turn_modif(s, -1, d)
+                        if n1 != 0:
+                            turn_add(s, d - 1, 1)
+                            turn_add(s, d - 2, n1 - 1)
+                        turn_modif_left(s, -1, d)
+                        if n2 != 0:
+                            turn_add_left(s, d - 1, 1)
+                            turn_add_left(s, d - 2, n2 - 1)
+                        l = deque()
+                        e = geo.popleft()
+                        e1 = Q._ep(e)
+                        for _ in range(n2):
+                            e = geo.popleft()
+                            e1 = Q._ep(e)
+                            l.appendleft(fp[fp[e1]])
+                        geo.appendleft(Q.previous_in_face(e1))
+                        geo.extendleft(l)
+                        l = deque()
+                        e = geo.pop()
+                        e1 = Q._ep(e)
+                        for _ in range(n1):
+                            e = geo.pop()
+                            e1 = Q._ep(e)
+                            l.appendleft(fp[fp[e1]])
+                        l.appendleft(fp[e1])
+                        geo.extend(l)
+                i+=1
+                geo.rotate()
+                turn_add_left(s, first_turn, 1)
+                (t1, n1) = s.pop()
+                first_turn = t1
+                if n1 != 1:
+                    s.append((t1, n1 - 1))
+
+
+
+
+class Walk:
+
+    # TODO : Documentation + Change name ?
+
+    def __init__(self, Q, walk):
+        r"""
+        Methods:
+            _quadsystem: the underlying quad system
+            _walk: the walk in the original OrientedMap
+            _geodesic: the canonical geodesic representative of walk
+        """
+
+        self._quadsystem = Q
+        self._walk = walk
+        self._geodesic = Geodesic(Q)
+        for e in self._walk:
+            for f in Q._proj[e]:
+                self._geodesic.add_edge(f)
+        self._geodesic.canonical()
+
+    def __eq__(self, other):
+        return (self._quadsystem == other._quadsystem) and (self._walk == other._walk)
+
+    def is_homotopic(self, other):
+        r"""
+        Return whether self and other are freely homotopic.
+        
+        EXAMPLES::
+        
+            sage: from topsurf import OrientedMap, QuadSystem, Geodesic, Walk
+            sage: m = OrientedMap(vp=[[0, 2, 4, 6],[7, 8, 5], [9, 10, 12, 11], [3, 15, 1, 13, 14]])
+            sage: Q = QuadSystem(m)
+            sage: w1 = Walk(Q, [])
+            sage: w2 = Walk(Q, [4, 8, 11, 9, 7])
+            sage: w3 = Walk(Q, [6, 5])
+            sage: w1.is_homotopic(w2)
+            True
+            sage: w1.is_homotopic(w3)
+            False
+            sage: w4 = Walk(Q, [6, 8, 11, 9, 7])
+            sage: w5 = Walk(Q, [2, 15])
+            sage: w3.is_homotopic(w4)
+            True
+            sage: w3.is_homotopic(w5)
+            False
+            sage: w6 = Walk(Q, [11])
+            sage: w3.is_homotopic(w6)
+            True
+
+        """
+        if self._quadsystem != other._quadsystem:
+            raise ValueError("The quadsystems are different")
+        if len(self._geodesic) != len(other._geodesic):
+            return False
+
+        c = self._geodesic._geodesic.copy()
+        c.extend(c)
+        return test_KMP(other._geodesic._geodesic, c)
