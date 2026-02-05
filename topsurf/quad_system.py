@@ -1350,3 +1350,70 @@ class LazyGeodesic:
             else:
                 self._first = e
                 turn_add_left(self._turn_sequence, newturn, 1)
+
+
+
+class StarShapedSpace:
+
+    # TODO
+
+    def __init__(self, Q, root):
+
+        self._vertices = [root]
+        self._quad_system = Q
+        self._inedges = [[]]
+        self._outedges = [{}]
+
+    
+    def add_vertex(self, vertex):
+        
+        self._vertices.append(vertex)
+        self._inedges.append({})
+        self._outedges.append([])
+        return len(self._vertices) - 1
+
+    
+    def add_edge(self, vertex1, vertex2, edge):
+        r"""
+        Add an edge from vertex1 to vertex2 that project to edge
+        """
+        if not self.contains_edge(vertex1, edge):
+            self._outedges[vertex1].append((edge, vertex2))
+        if not self.contains_edge(vertex2, Q._quad._ep(edge)):
+            self._inedges[vertex2][Q._quad._ep(edge)] = vertex1
+
+
+    def contains_edge(self, vertex, edge):
+        
+        result = False
+        for elt in self._outedges[vertex]:
+            if elt[0] == edge:
+                result = True
+        return (self._outedges[vertex][edge] is None) or result
+            
+
+    def opposite_vertex(self, vertex, edge):
+        if not self._outedges[vertex][edge] is None:
+            return self._outedges[vertex][edge]
+        else:
+            for elt in self._inedges[vertex]:
+                if elt[0] == edge:
+                    return elt[1]
+            raise ValueError("There is no such edge")
+
+        
+    def rotate(self, vertex, edge, turn):
+        raise NotImplementedError
+
+    def turn(self, vertex, edge):
+        turn = None
+        out_edge = None
+        d = 4 * Q._genus
+        for elt in self._outedges[vertex]:
+            newturn = Q.turn(edge, elt[0])
+            if newturn > d//2:
+                newturn = d - newturn
+            if turn == None or (turn > newturn):
+                turn = newturn
+                out_edge = elt[0]
+        return turn, out_edge
