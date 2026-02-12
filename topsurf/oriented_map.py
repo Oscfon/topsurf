@@ -213,7 +213,10 @@ class OrientedMap:
           the data
         """
         if vp is None and fp is None:
-            raise ValueError("either the vertex permutation vp or the face permutation fp must be provided")
+            self._vp = array("i", [])
+            self._fp = array("i", [])
+            self._mutable = mutable
+            return
 
         if vp is not None:
             vp = perm_init(vp, partial=True, edge_like=isinstance(vp, str))
