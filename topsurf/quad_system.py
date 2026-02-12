@@ -364,7 +364,7 @@ class QuadSystem:
             _origin_map: the original OrientedMap
             _genus: the genus of the underlying surface
             _quad: the quad system
-            _proj: the projection from _origin_map half-edges to path of length 2 of _quad
+            _proj: the projection from _origin_map half-edges to path of length 0 or 2 of _quad
             _turn: a list of edges that gives a coefficient to each half-edge around each vertex corresponding at the turn
         """
 
@@ -460,6 +460,19 @@ class QuadSystem:
             return nl2 - nl1
         else:
             return 4 * self._genus + nl2 - nl1
+
+
+    def rotate_list(self):
+        res = []
+        d = 4 * self._genus
+        for h in self._quad.half_edges():
+            res.append()
+            current = h
+            for _ in range(d):
+                res[h].append(current)
+                current = self._quad._vp[current]
+        return res
+            
 
 
 
@@ -1360,9 +1373,10 @@ class StarShapedSpace:
     def __init__(self, Q, root):
 
         self._vertices = [root]
-        self._quad_system = Q
-        self._inedges = [[]]
-        self._outedges = [{}]
+        self._quadsystem = Q
+        self._inedges = [{}]
+        self._outedges = [[]]
+        self._rotate_list = Q.rotate_list() 
 
     
     def add_vertex(self, vertex):
@@ -1377,6 +1391,7 @@ class StarShapedSpace:
         r"""
         Add an edge from vertex1 to vertex2 that project to edge
         """
+        Q = self._quadsystem
         if not self.contains_edge(vertex1, edge):
             self._outedges[vertex1].append((edge, vertex2))
         if not self.contains_edge(vertex2, Q._quad._ep(edge)):
@@ -1389,7 +1404,7 @@ class StarShapedSpace:
         for elt in self._outedges[vertex]:
             if elt[0] == edge:
                 result = True
-        return (self._outedges[vertex][edge] is None) or result
+        return (not self._inedges[vertex][edge] is None) or result
             
 
     def opposite_vertex(self, vertex, edge):
@@ -1403,7 +1418,10 @@ class StarShapedSpace:
 
         
     def rotate(self, vertex, edge, turn):
-        raise NotImplementedError
+        if self.contains_edge(vertex, edge):
+            return self._rotate_list[edge][turn]
+        else:
+            raise ValueError("There is no such edge")
 
     def turn(self, vertex, edge):
         turn = None
@@ -1412,8 +1430,52 @@ class StarShapedSpace:
         for elt in self._outedges[vertex]:
             newturn = Q.turn(edge, elt[0])
             if newturn > d//2:
-                newturn = d - newturn
-            if turn == None or (turn > newturn):
+                newturn = newturn - d
+            if turn == None or (abs(turn) > abs(newturn)):
                 turn = newturn
                 out_edge = elt[0]
         return turn, out_edge
+
+
+    def insert_edge(self, vertex, edge):
+        if self.contains_edge(vertex, edge):
+            return self.opposite_vertex(vertex, edge)
+        turn, out_edge = self.turn(vertex, edge)
+        opposite_edge = self._quadsystem._ep(edge)
+        new_vertex = self.add_vertex(opposite_edge%2)
+        if abs(turn) == 1:
+            old_vertex = self.opposite_vertex(vertex, out_edge)
+            new_edge = self.turn(old_vertex, -turn)
+            self.insert_edge(old_vertex, new_edge)
+            square_vertex = self.opposite_vertex(old_vertex, new_edge)
+            square_edge = self.rotate(square_vertex, self._quadsystem._ep(new_edge), -turn)
+            self.add_edge(new_vertex, square_vertex, self._quadsystem._ep(square_edge))
+        self.add_edge(vertex, new_vertex, edge)
+        return new_vertex
+
+
+def simplicity(oriented_map, walk, edge_to_vertex=None, quadsystem=None):
+    if not walk:
+        return True
+    if quadsystem == None:
+        quadsystem = QuadSystem(oriented_map)
+    if edge_to_vertex == None:
+        edge_to_vertex = oriented_map.edge_to_vertex()
+
+    star = StarShapedSpace(quadsystem, 1)
+    seen_value = {}
+    previous_vertex = 0
+
+    for edge in walk:
+        for elt in quadsystem._proj[edge]:
+            previous_vertex = star.insert_edge(previous_vertex, elt)
+
+        map_vertex = edge_to_vertex[quadsystem._quad._ep(elt)]
+        if seen_value.get((previous_vertex, map_vertex)) == None:
+            seen_value[(previous_vertex, map_vertex)]
+        else:
+            return False
+    return True
+    
+
+    
