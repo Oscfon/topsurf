@@ -3004,26 +3004,21 @@ class OrientedMap:
 
 
 
-    def edge_to_vertex(self):
+    def half_edges_to_vertices(self):
 
-        res = []
-        vertices = self.vertices()
-        for h in self.half_edges():
-            for vertex_index in len(vertices):
-                if h in vertices[vertex_index]:
-                    res.append(vertex_index)
+        res = [-1 for _ in self.half_edges()]
+        for index, vertex in enumerate(self.vertices()):
+            for h in vertex:
+                res[h] = index
         return res
 
 
-    def edge_to_faces(self):
-
+    def half_edges_to_faces(self):
         
-        res = []
-        faces = self.faces()
-        for h in self.half_edges():
-            for face_index in len(faces):
-                if h in faces[face_index]:
-                    res.append(face_index)
+        res = [-1 for _ in self.half_edges()]
+        for index, face in enumerate(self.faces()):
+            for h in face:
+                res[h] = index
         return res
             
 
