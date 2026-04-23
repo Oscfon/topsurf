@@ -1146,22 +1146,31 @@ class Walk:
         
         if not self._walk:
             return True
+        elif len(self._walk)==2 and oriented_map._ep(self._walk[0]) == self._walk[1]:
+            return False
         if quadsystem is None:
             quadsystem = QuadSystem(oriented_map)
         if edge_to_vertex is None:
             edge_to_vertex = oriented_map.half_edges_to_vertices()
 
-        star = StarShapedSpace(quadsystem, 1)
-        seen_value = {}
+        star = StarShapedSpace(quadsystem, edge_to_vertex[self._walk[0]])
+        seen_value = {} 
         previous_vertex = 0
+        first_values = (0, edge_to_vertex[self._walk[0]])
+        seen_value[first_values] = True
 
-        for edge in self._walk:
+        for i in range(len(self._walk)):
+            edge = self._walk[i]
             for elt in quadsystem._proj[edge]:
                 previous_vertex = star.insert_edge(previous_vertex, elt)
             map_vertex = edge_to_vertex[oriented_map._ep(edge)]
             if seen_value.get((previous_vertex, map_vertex)) is None:
                 seen_value[(previous_vertex, map_vertex)] = True
+                #print(seen_value)
+            elif i == len(self._walk) - 1 and (previous_vertex, map_vertex) == first_values:
+                return True
             else:
+                #print(seen_value)
                 return False
         return True
 
@@ -1401,10 +1410,10 @@ class StarShapedSpace:
 
     def __init__(self, Q, root):
 
-        self._vertices = [root]
-        self._quadsystem = Q
-        self._inedges = [{}]
-        self._outedges = [[]]
+        self._vertices = [root] #??
+        self._quadsystem = Q # the underlying quadsystem
+        self._inedges = [{}] # for each vertex a dictionnary containing the entering edges
+        self._outedges = [[]] # for each vertex the list of (at most 2) outedges
         self._rotate_list = Q.rotate_list() 
 
     
@@ -1433,17 +1442,17 @@ class StarShapedSpace:
         for elt in self._outedges[vertex]:
             if elt[0] == edge:
                 result = True
-        return (not self._inedges[vertex].get(edge) is None) or result
+        return result or (not self._inedges[vertex].get(edge) is None)
             
 
     def opposite_vertex(self, vertex, edge):
-        if not self._outedges[vertex][edge] is None:
-            return self._outedges[vertex][edge]
-        else:
-            for elt in self._inedges[vertex]:
-                if elt[0] == edge:
-                    return elt[1]
-            raise ValueError("There is no such edge")
+        for elt in self._outedges[vertex]:
+            if elt[0] == edge:
+                return elt[1]
+        for elt in self._inedges[vertex]:
+            if elt == edge:
+                return self._inedges[vertex][elt]
+        raise ValueError("There is no such edge")
 
         
     def rotate(self, vertex, edge, turn):
@@ -1475,10 +1484,10 @@ class StarShapedSpace:
         new_vertex = self.add_vertex(opposite_edge%2)
         if turn != None and abs(turn) == 1:
             old_vertex = self.opposite_vertex(vertex, out_edge)
-            new_edge = self.turn(old_vertex, -turn)
+            new_edge = self._rotate_list[out_edge][-turn]
             self.insert_edge(old_vertex, new_edge)
             square_vertex = self.opposite_vertex(old_vertex, new_edge)
-            square_edge = self.rotate(square_vertex, self._quadsystem._ep(new_edge), -turn)
-            self.add_edge(new_vertex, square_vertex, self._quadsystem._ep(square_edge))
+            square_edge = self.rotate(square_vertex, self._quadsystem._quad._ep(new_edge), -turn)
+            self.add_edge(new_vertex, square_vertex, self._quadsystem._quad._ep(square_edge))
         self.add_edge(vertex, new_vertex, edge)
         return new_vertex
